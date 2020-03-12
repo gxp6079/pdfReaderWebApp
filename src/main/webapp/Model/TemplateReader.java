@@ -2,6 +2,8 @@ package main.webapp.Model;
 
 import com.google.gson.Gson;
 import com.opencsv.CSVReader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 
 import java.io.*;
 import java.sql.Array;
@@ -169,5 +171,29 @@ public class TemplateReader {
             return null;
         }
 
+    }
+
+    public static String[] readPDFIntoLines(String filename){
+        try {
+            File file = new File(filename);
+            PDDocument document = PDDocument.load(file);
+
+            PDFTextStripper pdfStripper  = new PDFTextStripper();
+
+            pdfStripper.setStartPage(1);
+            pdfStripper.setEndPage(10);
+
+            //load all lines into a string
+            String pages = pdfStripper.getText(document);
+
+            //split by detecting newline
+            String[] lines = pages.split("\r\n|\r|\n");
+            return  lines;
+        }
+
+        catch(IOException e){
+            e.printStackTrace();
+        }
+        return null;
     }
 }

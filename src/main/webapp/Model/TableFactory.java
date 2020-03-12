@@ -66,7 +66,7 @@ public class TableFactory {
 
 
 
-    public TableFactory(List<String[]> list) {
+    public TableFactory(List<String[]> list, String[] pdfLines) {
         this.tableRow = new ArrayList<>();
         this.dataIndexes = new ArrayList<>();
         this.list = list;

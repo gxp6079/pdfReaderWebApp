@@ -145,7 +145,8 @@ public class postTemplateRoute implements Route {
             LOG.info("template exists");
             try {
                 List<String[]> list = TemplateReader.readAllLines(token.getCsvPath());
-                TableFactory tableFactory = new TableFactory(list);
+                String[] pdfList = TemplateReader.readPDFIntoLines(token.getPdfPath());
+                TableFactory tableFactory = new TableFactory(list, pdfList);
                 token.setTableFactory(tableFactory);
 
                 Template template = TemplateReader.readFromDB(templateType, token.getInstitutionId(), LOG);
@@ -164,8 +165,9 @@ public class postTemplateRoute implements Route {
         currentTemplate.setType(templateType);
 
         List<String[]> lines = TemplateReader.readAllLines(csvFilePath);
+        String[] pdfLines = TemplateReader.readPDFIntoLines(token.getPdfPath());
 
-        token.setTableFactory(new TableFactory(lines));
+        token.setTableFactory(new TableFactory(lines, pdfLines));
 
         return 1;
     }
