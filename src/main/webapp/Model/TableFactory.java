@@ -195,8 +195,21 @@ public class TableFactory {
 
             if(col == list.get(row).length - 1) {
                 if(!list.get(row)[leftCol].equals("") && !tableRow.get(0).contains("...")) {
-                    table.addRow(tableRow);
-                    LOG.info("Adding row of size: " + tableRow.size());
+                    int nonEmpty = 0;
+                    for (String value : tableRow) {
+                        if (!value.trim().equals("")) nonEmpty++;
+                    }
+                    if (nonEmpty > 1) { // normal row
+                        table.addRow(tableRow);
+                        LOG.info("Adding row of size: " + tableRow.size());
+                    } else if (nonEmpty == 1) { // case with only one element in row
+                        int prevRowIndex = table.getTable().size()-2;
+                        if (!tableRow.get(0).trim().equals("") && prevRowIndex >= 0) { // if its the first element add it to the previous row
+                            List<String> prevRow = table.getTable().get(prevRowIndex);
+                            prevRow.set(0, prevRow.get(0) + " " + tableRow.get(0));
+                            //TODO see if the reference works or if reset table at previous row to updated row
+                        }
+                    }
                 }
                 col = 0;
                 tableRow.clear();
