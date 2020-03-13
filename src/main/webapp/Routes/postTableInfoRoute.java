@@ -1,9 +1,7 @@
 package main.webapp.Routes;
 
-import main.webapp.Model.Field;
-import main.webapp.Model.Table;
-import main.webapp.Model.TableFactory;
-import main.webapp.Model.Template;
+import main.webapp.Application;
+import main.webapp.Model.*;
 import spark.Request;
 import spark.Response;
 import spark.Route;
@@ -20,7 +18,7 @@ import java.util.logging.SimpleFormatter;
  *
  */
 public class postTableInfoRoute implements Route {
-    private static final Logger LOG = Logger.getLogger(WebServer.class.getName());
+    private static final Logger LOG = Logger.getLogger(postTableInfoRoute.class.getName());
     public static FileHandler fh;
 
 
@@ -41,26 +39,30 @@ public class postTableInfoRoute implements Route {
 
     @Override
     public Object handle(Request request, Response response) throws Exception {
-        Template currentTemplate = request.session().attribute("template");
 
-        TableFactory factory = request.session().attribute("factory");
+        String tokenId = request.queryParams("token");
+        Token token = Application.getToken(tokenId, request);
+
+        Template currentTemplate = token.getTemplate();
+
+        TableFactory factory = token.getTableFactory();
 
         String fieldName = request.queryParams("field").trim().toLowerCase();
         String value = request.queryParams("value");
-        int id = Integer.parseInt(request.queryParams("id"));
+        String id = request.queryParams("tableId");
 
         LOG.info("Retrieving tables from session");
-        Map<Integer, Table> tables = request.session().attribute("tables");
+        Map<String, Table> tables = token.getTables();
 
-        LOG.info("Getting table based on id " + Integer.toString(id));
+        LOG.info("Getting table based on id " + id);
         Table curr = tables.get(id);
         if (curr == null) {
             response.status(400);
-            LOG.info("Table id: " + Integer.toString(id) + " not found\nFailed to add to template");
+            LOG.info("Table id: " + id + " not found\nFailed to add to template");
             return "table id not found";
         }
 
-        if (curr.getDataAt(value) == null) {
+        if (curr.getDataAt(value, LOG) == null) {
             response.status(400);
             LOG.info("Header \'" + value + "\' not found in table\nFailed to add to template");
             return "value not found in table";

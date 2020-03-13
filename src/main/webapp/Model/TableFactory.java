@@ -1,7 +1,5 @@
 package main.webapp.Model;
 
-import main.webapp.Routes.postStartEndRoute;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.FileHandler;
@@ -9,6 +7,7 @@ import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
 public class TableFactory {
+
     /**
      * left most column of the table
      */
@@ -49,9 +48,20 @@ public class TableFactory {
      */
     private String end;
 
+    /**
+     * Should use contains
+     */
+    private Boolean contains;
+
+    /**
+     * whether the table is horizontal or vertical
+     * used for accessing data
+     */
+    private TableAttributes.Orientation orientation;
+
     private List<Integer[]> locations;
 
-    private static final Logger LOG = Logger.getLogger(postStartEndRoute.class.getName());
+    private static final Logger LOG = Logger.getLogger(TableFactory.class.getName());
     public static FileHandler fh;
 
 
@@ -60,6 +70,7 @@ public class TableFactory {
         this.tableRow = new ArrayList<>();
         this.dataIndexes = new ArrayList<>();
         this.list = list;
+        this.contains = contains = true;
         this.row = 0;
         this.col = 0;
 
@@ -80,49 +91,57 @@ public class TableFactory {
     }
 
 
-    public void initialize(String start, String end) {
+    public void initialize(String start, String end, Boolean contains, TableAttributes.Orientation orientation) {
         this.tableRow.clear();
         this.dataIndexes.clear();
         this.row = 0;
         this.col = 0;
+        this.contains = contains;
+        this.orientation = orientation;
         this.start = start.trim().toLowerCase();
         this.end = end.trim().toLowerCase();
-        this.locations = getLocation(this.start, this.end);
+        this.locations = getLocation(this.start, this.end, this.contains);
         LOG.info("Table factory initialized with start, end: " + start + ", " + end);
         LOG.info("Number of locations found: " + locations.size());
     }
 
-    public List<Integer[]> getLocation(String start, String end){
+    public List<Integer[]> getLocation(String start, String end, Boolean contains){
+        LOG.info("getLocation");
         List<Integer[]> locations = new ArrayList<>();
         int leftCol = 0;
         int row = 0;
-        while(row < list.size()){
-            if(list.get(row)[leftCol].trim().toLowerCase().contains(start)){
+        while(row < list.size()) {
+            //LOG.info("Comparing: " + start + " and " + list.get(row)[leftCol].trim().toLowerCase());
+            if ((contains && list.get(row)[leftCol].trim().toLowerCase().contains(start)) ||
+                    (!contains && list.get(row)[leftCol].trim().toLowerCase().equals(start))) {
+                LOG.info("start found");
                 Integer[] loc = new Integer[2];
                 loc[0] = row;
                 loc[1] = leftCol;
-                if (hasEnd(end, row)) locations.add(loc);
+                if (hasEnd(end, row, contains)) locations.add(loc);
             }
-            if(leftCol == list.get(row).length - 1){
+            if (leftCol == list.get(row).length - 1) {
                 leftCol = 0;
-                row ++;
-            }
-            else{
+                row++;
+            } else {
                 leftCol++;
             }
         }
         return locations;
     }
 
-    private boolean hasEnd(String end, int row) {
+    private boolean hasEnd(String end, int row, Boolean contains) {
+        LOG.info(String.format("hasEnd called (%s, %d)", end, row));
         int col = 0;
         try {
             while (row < list.size()) {
                 String val = list.get(row)[col].trim().toLowerCase();
-                if (val.contains(end)) return true;
+                if ((contains && val.contains(end)) || (!contains && val.equals(end))){
+                    LOG.info(String.format("End found at row, col: %s, %s", row, col));
+                    return true;
+                }
                 if (col == list.get(row).length - 1) {
                     col = 0;
-                    tableRow.clear();
                     row++;
                     if (row >= list.size()) {
                         // END string not found
@@ -138,6 +157,9 @@ public class TableFactory {
         return false;
     }
 
+
+
+
     public int getNumLocations() {
         return this.locations.size();
     }
@@ -152,7 +174,7 @@ public class TableFactory {
             if(locations.size() == 0){
                 LOG.info("Failed to make table, no locations found for start, end :"  + start + ", " + end);
                 System.out.println("Start not found");
-                return new Table(start, end);
+                return new Table(start, end, orientation); //shouldn't we return null here
             }
             else{
                 this.row = locations.get(location - 1)[0];
@@ -166,7 +188,8 @@ public class TableFactory {
             LOG.info("Only one possible location exists");
             LOG.info("Using location row, leftCol: " + this.row + ", " + this.leftCol);
         }
-        Table table = new Table(start, end);
+        //getEndCol(this.end, this.row, this.leftCol);
+        Table table = new Table(start, end, orientation);
         LOG.info("Table object created with start, end: " + start + ", " + end);
 
         initializeHeaders(table);
@@ -178,7 +201,7 @@ public class TableFactory {
         this.col = this.leftCol;
         String val = list.get(row)[col].trim().toLowerCase();
         end = end.trim().toLowerCase();
-        while(!val.contains(end)) {
+        while(!((contains && val.contains(end)) || (!contains && val.equals(end)))) {
             val = list.get(row)[col].trim().toLowerCase();
             if (col >= leftCol) {
                 if(col == leftCol && !val.equals("")) finishedHead = true;
@@ -193,7 +216,7 @@ public class TableFactory {
                 }
             }
 
-            if(col == list.get(row).length - 1) {
+            if(col >= list.get(row).length-1) {
                 if(!list.get(row)[leftCol].equals("") && !tableRow.get(0).contains("...")) {
                     int nonEmpty = 0;
                     for (String value : tableRow) {
@@ -214,10 +237,10 @@ public class TableFactory {
                 col = 0;
                 tableRow.clear();
                 this.row++;
-                if (row >= list.size() && !val.contains(end)) {
+                if (row >= list.size() && !((contains && val.contains(end)) || (!contains && val.equals(end)))) {
                     System.out.println("End not found");
                     LOG.info("End" + this.end+" was not found, returning empty table");
-                    return new Table(start, end);
+                    return new Table(start, end, orientation);
                 }
             } else {
                 col++;

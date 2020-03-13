@@ -1,13 +1,18 @@
 package main.webapp.Model;
 
 import java.util.*;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 public class Table {
+
     private List<List<String>> table;
 
     private String start;
     private String end;
 
+    private TableAttributes.Orientation orientation;
 
     /**
      * maps header column to header
@@ -20,12 +25,14 @@ public class Table {
      */
     private Map<Integer, Header> subHeaders;
 
-    public Table(String start, String end){
-        this.headerList = new TreeMap<Integer, Header>();
-        this.subHeaders =  new TreeMap<Integer, Header>();
+    public Table(String start, String end, TableAttributes.Orientation orientation){
+        this.headerList = new HashMap<>();
+        this.subHeaders =  new HashMap<>();
         this.start = start;
         this.end = end;
+        this.orientation = orientation;
         this.table = new ArrayList<List<String>>();
+
     }
 
     public List<List<String>> getTable(){
@@ -60,50 +67,80 @@ public class Table {
 
     /***
      * gets data in the column or row of a specified header
-     * @param header
+     * @param value value to search for in the table
      * @return
      */
-    public List<String> getDataAt(String header) {
+    public List<String> getDataAt(String value, Logger LOG) {
         boolean found = false;
-        header = header.trim().toLowerCase();
-        int col = 0;
+        value = value.trim().toLowerCase();
+        int colNum = 0;
+        int rowNum = 0;
+        ArrayList<String> data = new ArrayList<>();
+
+
+
+        // find value in table
+        LOG.info(String.format("Seraching for string: %s", value));
+
         for (int i : headerList.keySet()) {
-            String val = headerList.get(i).getValue();
-            if (val.contains(header)){
-                found = true;
+            LOG.info("Searching headers and subheaders");
+            Header h = headerList.get(i);
+            if (h.getValue().toLowerCase().contains(value)) {
+                colNum = h.getCol();
+                rowNum = 0;
+                found = true; // to skip searching rest of table
+                data.add(h.getValue());
+                LOG.info(String.format("Found value at row, col: %d, %d", rowNum, colNum));
+                if (subHeaders.containsKey(colNum)) data.add(subHeaders.get(colNum).getValue());
                 break;
             }
-            else if (headerList.get(i).hasChildren()) {
-                for (Header h : headerList.get(i).getChildren()) {
-                    if (h.getValue().contains(header)){
-                        found = true;
+            else if (h.hasChildren()) {
+                for (Header child : h.getChildren()) {
+                    if (child.getValue().toLowerCase().contains(value)) {
+                        colNum = child.getCol();
+                        rowNum = 0;
+                        found = true; // to skip searching rest of table
+                        data.add(child.getValue());
+                        LOG.info(String.format("Found value at row, col: %d, %d", rowNum, colNum));
                         break;
                     }
-                    col++;
                 }
-            } else {
-                if (headerList.get(i).getValue().contains(header)){
-                    found = true;
+            }
+        }
+        if (!found) {
+            LOG.info("Searching all table values");
+            for (rowNum = 0; rowNum < this.table.size(); rowNum++) {
+                List<String> row = this.table.get(rowNum);
+                for (colNum = 0; colNum < row.size(); colNum++) {
+                    String currentVal = row.get(colNum).trim().toLowerCase();
+                    if (currentVal.contains(value)) {
+                        found = true;
+                        LOG.info(String.format("Found value at row, col: %d, %d", rowNum, colNum));
+                        break;
+                    }
+                }
+                if(found){
                     break;
                 }
-                col++;
             }
         }
 
-        if (!found){
-            for (List<String> row : table){
-                if(row.get(0).contains(header)){
-                    return row.subList(0, row.size());
-                }
+        if (orientation.equals(TableAttributes.Orientation.VERTICAL)) {
+            LOG.info("Treating table as vertical");
+            LOG.info("Current row = " + rowNum + " max row = " + table.size());
+            for (int i = rowNum; i < table.size(); i++) {
+                if(colNum >= table.get(i).size()) continue;
+                LOG.info("Adding " + table.get(i).get(colNum));
+                data.add(table.get(i).get(colNum));
             }
-            return null;
-        }
+            return data;
 
-        ArrayList<String> data = new ArrayList<>();
-        for (int i = 0; i < table.size(); i++) {
-            data.add(table.get(i).get(col));
+        } else {
+            LOG.info("Treating table as vertical");
+            List<String> row = this.table.get(rowNum);
+            LOG.info("Adding: " + row.subList(colNum, row.size()));
+            return row.subList(colNum, row.size());
         }
-        return data;
     }
 
     public String toString(){

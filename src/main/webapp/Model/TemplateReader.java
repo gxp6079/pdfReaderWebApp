@@ -1,9 +1,10 @@
 package main.webapp.Model;
 
+import com.google.gson.Gson;
 import com.opencsv.CSVReader;
 
-import javax.servlet.ServletOutputStream;
 import java.io.*;
+import java.sql.Array;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.*;
@@ -17,60 +18,98 @@ public class TemplateReader {
      * @return true if exists false otherwise
      * @throws SQLException thrown if cannot access database
      */
-    public static boolean checkIfExists(String templateName) throws SQLException {
-        Connection connection = DataBaseConnection.makeConnection();
-        return DataBaseConnection.checkIfObjExists(connection, templateName);
+    public static boolean checkIfExists(String templateName, String institutionId) throws SQLException {
+        return DataBaseConnection.checkIfObjExists(templateName, institutionId);
     }
 
 
-    public static void readExistingTemplate(String filename, String templateName, PrintWriter out) throws IOException {
-        Template template = null;
+    public static String readExistingTemplate(TableFactory tableFactory, Template template, Logger LOG) throws IOException {
         try {
-            template = readFromDB(templateName);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
+            LOG.info("Template successfully retrieved");
+
+            Map<String, Table> tables = new HashMap<>();
+
+            for (TableAttributes ta : template.getTables().values()) {
+                tableFactory.initialize(ta.START, ta.END, ta.contains, ta.orientation);
+                Table table = tableFactory.makeTable(ta.getOccurrence());
+                if (table != null) tables.put(ta.tableId, table);
+            }
+
+            /**
+             * name of field to value
+             */
+            HashMap<String, HashMap<String, List<String>>> values = new HashMap<>();
+
+            for (Field field : template.getFields().values()) {
+                HashMap<String, List<String>> valuesInTable;
+                if(values.containsKey(field.TABLE_ID)){
+                    valuesInTable = values.get(field.TABLE_ID);
+                }
+                else{
+                    valuesInTable = new HashMap<>();
+                    values.put(field.TABLE_ID, valuesInTable);
+                }
+                LOG.info("Reading data for field: " + field.NAME);
+                Map<String, String> dictionary = field.getWordLUT();
+                List<String> value = field.getValue(tables.get(field.TABLE_ID), LOG);
+                LOG.info("Got " + value + "\nfrom table " + field.TABLE_ID + "\nwith header" + field.HEADER);
+                if(dictionary.size() != 0) {
+                    ArrayList<String> data = new ArrayList<>(value);
+                    for (int i = 0; i < data.size(); i++) {
+                        String curr = data.get(i);
+                        if (dictionary.containsKey(curr)) data.set(i, dictionary.get(curr));
+                    }
+                    value = data;
+                }
+                valuesInTable.put(field.NAME, value);
+                LOG.info("added new field " + valuesInTable);
+            }
+
+            Gson gson = new Gson();
+
+            LOG.info("table info printing complete with values " + values + "and Json " + gson.toJson(values));
+            return gson.toJson(values);
         }
-        List<String[]> list = readAllLines(filename);
-
-        Map<Integer, Table> tables = new HashMap<>();
-
-        TableFactory tableFactory = new TableFactory(list);
-        for (TableAttributes ta : template.getTables()) {
-            tableFactory.initialize(ta.START, ta.END);
-            Table table = tableFactory.makeTable(ta.getOccurrence());
-            if (table != null) tables.put(table.hashCode(), table);
+        catch (Exception e) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pr = new PrintWriter(sw);
+            e.printStackTrace(pr);
+            LOG.info(sw.toString());
         }
-
-        /**
-         * name of field to value
-         */
-        Map<String, List<String>> values = new HashMap<>();
-
-        for (Field field : template.getFields().values()) {
-            List<String> value = field.getValue(tables.get(field.TABLE_ID));
-            values.put(field.NAME, value);
-            out.println(field.NAME + " :" + String.join(" | ", value));
-        }
-
+        return "";
     }
 
-    public static HashMap<Integer, Table> getTables(Template template, TableFactory tableFactory, PrintWriter out, Logger LOG) throws IOException {
+    public static HashMap<String, Table> getTables(Template template, TableFactory tableFactory, Logger LOG) throws IOException {
 
         LOG.info("getTables() method called in TemplateReader");
-        HashMap<Integer, Table> tables = new HashMap<>();
+        HashMap<String, Table> tables = new HashMap<>();
 
-        for(TableAttributes attributes : template.getTables()){
+        for(TableAttributes attributes : template.getTables().values()){
             LOG.info("looking for table with start, end: " + attributes.START + ", " + attributes.END);
-            tableFactory.initialize(attributes.START, attributes.END);
+            tableFactory.initialize(attributes.START, attributes.END, attributes.contains, attributes.orientation);
             Table table = tableFactory.makeTable(attributes.getOccurrence());
             LOG.info("Table found");
-            tables.put(table.hashCode(), table);
+            tables.put(attributes.tableId, table);
         }
 
+        return tables;
+    }
+
+    public static Table getTableWithId(String tableId, Template template, TableFactory tableFactory, Logger LOG){
+        LOG.info("Available = " + template.getTables().keySet().toString() +
+                        "\n requested = "+ tableId);
+        TableAttributes attributes = template.getTables().get(tableId);
+        LOG.info("Got attributes = " + attributes);
+        tableFactory.initialize(attributes.START, attributes.END, attributes.contains, attributes.orientation);
+        LOG.info("Table initialized");
+        Table table = tableFactory.makeTable(attributes.getOccurrence());
+        LOG.info("Made table = " + table);
+        return table;
+    }
+
+    public static void printTables(HashMap<String, Table> tables, PrintWriter out, Logger LOG){
         LOG.info("Printing tables");
-        for(Integer id : tables.keySet()){
+        for(String id : tables.keySet()){
             out.println(id);
             try {
                 out.println(String.valueOf(tables.get(id)));
@@ -80,41 +119,48 @@ public class TemplateReader {
             }
             out.println("\n");
         }
-
-        return tables;
     }
 
-    public static void createTable(Template template, String start, String end, int instance){
+    public static void createTable(Template template, String start, String end, Boolean contains, String tableId, int instance, TableAttributes.Orientation orientation){
 
-        TableAttributes attributes = new TableAttributes(start, end);
+        TableAttributes attributes = new TableAttributes(start, end, contains, tableId, orientation);
         attributes.setOccurrence(instance);
         template.addTable(attributes);
 
     }
 
 
-    public static Template readFromDB(String type) throws SQLException, IOException {
-        Connection connection = DataBaseConnection.makeConnection();
+    public static Template readFromDB(String type, String institutionId, Logger LOG) throws SQLException, IOException {
         try {
-            return (Template) DataBaseConnection.deSerializeJavaObjectFromDB(
-                    connection, type);
+            return (Template) DataBaseConnection.deSerializeJavaObjectFromDB(type, institutionId);
         } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            LOG.info(e.getMessage());
+        }
+        return null;
+    }
+
+    public static ArrayList<String> getTemplatesForInstitutionFromDB(String institutionId, Logger LOG) throws SQLException, IOException {
+        try {
+            return DataBaseConnection.getTemplatesForInstitution(institutionId, LOG);
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
     }
 
-    public static void addToDB(Template template) throws SQLException {
-        Connection connection = DataBaseConnection.makeConnection();
-        DataBaseConnection.serializeJavaObjectToDB(connection, template);
+    public static void addToDB(Template template, String institutionId) throws SQLException {
+        DataBaseConnection.serializeJavaObjectToDB(template, institutionId);
     }
 
 
     public static List<String[]> readAllLines(String filename) {
         try {
-            BufferedReader reader = new BufferedReader(new FileReader(filename));
+            FileInputStream fileInputStream = new FileInputStream(filename);
+            InputStreamReader reader = new InputStreamReader(fileInputStream, "UTF-8");
             CSVReader csvReader = new CSVReader(reader);
             List<String[]> list = csvReader.readAll();
+            fileInputStream.close();
             reader.close();
             csvReader.close();
             return list;

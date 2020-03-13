@@ -1,8 +1,10 @@
 package main.webapp.Routes;
 
+import main.webapp.Application;
 import main.webapp.Model.TableFactory;
 import main.webapp.Model.Template;
 import main.webapp.Model.TemplateReader;
+import main.webapp.Model.Token;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
@@ -44,7 +46,7 @@ import static spark.Spark.halt;
 public class postTemplateRoute implements Route {
     private static final Logger LOG = Logger.getLogger(postTemplateRoute.class.getName());
     public static FileHandler fh;
-    private static final String API_KEY = "bbdro1wrndmx";
+    private static final String API_KEY = "lubjob4yw0ts";
     private static final String FORMAT = "csv";
 
     public postTemplateRoute() {
@@ -104,9 +106,12 @@ public class postTemplateRoute implements Route {
 
     @Override
     public Object handle(Request request, Response response) throws Exception {
-        //String filename = request.queryParams("fileName");
-        request.session().attribute("template", new Template());
+
+        String tokenId = request.queryParams("token");
+        Token token = Application.getToken(tokenId, request);
+
         String templateType = request.queryParams("type");
+        token.setTemplate(new Template(templateType));
 
         String path = downloadFile(request);
         if (path == null) {
@@ -128,30 +133,39 @@ public class postTemplateRoute implements Route {
         String csvFilePath = getOutputFilename(path, "csv");
 
         LOG.info("setting new path");
-        request.session().attribute("path", csvFilePath);
+        token.setCsvPath(csvFilePath);
         LOG.info("new path set");
         LOG.info("setting new pdf path");
-        request.session().attribute("PDFPath", path);
+        token.setPdfPath(path);
         LOG.info("new PDF path set");
 
-        if (TemplateReader.checkIfExists(templateType)) {
+        String content = "No info";
+
+        if (TemplateReader.checkIfExists(templateType, token.getInstitutionId())) {
             LOG.info("template exists");
             try {
-                TemplateReader.readExistingTemplate(csvFilePath, templateType, response.raw().getWriter());
+                List<String[]> list = TemplateReader.readAllLines(token.getCsvPath());
+                TableFactory tableFactory = new TableFactory(list);
+                token.setTableFactory(tableFactory);
+
+                Template template = TemplateReader.readFromDB(templateType, token.getInstitutionId(), LOG);
+                token.setTemplate(template);
+
+                content = TemplateReader.readExistingTemplate(tableFactory, template, LOG);
             }
             catch (Exception e){
                 LOG.info("Error reading existing template:" +  e.getMessage());
             }
-            return 1;
+            return content;
         }
 
 
-        Template currentTemplate = request.session().attribute("template");
+        Template currentTemplate = token.getTemplate();
         currentTemplate.setType(templateType);
 
         List<String[]> lines = TemplateReader.readAllLines(csvFilePath);
 
-        request.session().attribute("factory", new TableFactory(lines));
+        token.setTableFactory(new TableFactory(lines));
 
         return 1;
     }

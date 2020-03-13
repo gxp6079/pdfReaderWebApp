@@ -1,11 +1,15 @@
 package main.webapp.Routes;
 
+import main.webapp.Application;
+import main.webapp.Model.TableFactory;
 import main.webapp.Model.Template;
 import main.webapp.Model.TemplateReader;
+import main.webapp.Model.Token;
 import spark.Request;
 import spark.Response;
 import spark.Route;
 
+import java.util.List;
 import java.util.logging.FileHandler;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
@@ -37,40 +41,36 @@ public class getFinalInfoRoute implements Route {
     @Override
     public Object handle(Request request, Response response) throws Exception {
 
-        Template currentTemplate = request.session().attribute("template");
-
-        LOG.info("Checking if exists template type: " + currentTemplate.getType());
         try {
-            if (!TemplateReader.checkIfExists(currentTemplate.getType()) && currentTemplate.shouldSave(LOG)) {
-                TemplateReader.addToDB(currentTemplate);
+            Token token = Application.getToken(request.queryParams("token"), request);
+
+            Template currentTemplate = token.getTemplate();
+            String institutionId = token.getInstitutionId();
+
+            LOG.info("Checking if exists template type: " + currentTemplate.getType());
+
+            if (!TemplateReader.checkIfExists(currentTemplate.getType(), institutionId)) {
+                TemplateReader.addToDB(currentTemplate, institutionId);
                 LOG.info("Adding template \'" + currentTemplate.getType() + "\' to database");
-            } else if(TemplateReader.checkIfExists(currentTemplate.getType())) {
-                LOG.info("Templat: " + currentTemplate.getType() + " already exists in database");
+            } else if (TemplateReader.checkIfExists(currentTemplate.getType(), institutionId)) {
+                LOG.info("Template: " + currentTemplate.getType() + " already exists in database");
+            } else {
+                response.status(404);
+                response.body("Not all required fields were set");
             }
-            else {
-                return "Not all required fields were set";
-            }
-        } catch (Exception e) {
-            LOG.info("Exception thrown when adding template to database");
-        }
-
-        try {
-            String encoding = "UTF-8";
-            LOG.info("Using encoding: " + encoding);
-            response.raw().setContentType("text/html; charset="+encoding);
-            response.raw().setCharacterEncoding(encoding);
 
             LOG.info("Reading data from template: " + currentTemplate.getType());
-            TemplateReader.readExistingTemplate(request.session().attribute("path").toString(),
-                    currentTemplate.getType(),
-                    response.raw().getWriter());
-        } catch (Exception e) {
-            LOG.info("Exception thrown when reading template" + e.getMessage());
+
+            String content = TemplateReader.readExistingTemplate(token.getTableFactory(), token.getTemplate(), LOG);
+
+
+            fh.flush();
+            LOG.info("GetFinalInfo completed successfully");
+            return content;
         }
-
-        LOG.info("GetFinalInfo completed successfully");
-        fh.flush();
-
+        catch (Exception e) {
+            LOG.info("Exception thrown " + e.getMessage());
+        }
         return 1;
     }
 }
