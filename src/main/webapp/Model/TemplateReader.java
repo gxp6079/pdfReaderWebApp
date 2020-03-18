@@ -56,7 +56,7 @@ public class TemplateReader {
                 if(dictionary.size() != 0) {
                     ArrayList<String> data = new ArrayList<>(value);
                     for (int i = 0; i < data.size(); i++) {
-                        String curr = data.get(i);
+                        String curr = data.get(i).toLowerCase();
                         if (dictionary.containsKey(curr)) data.set(i, dictionary.get(curr));
                     }
                     value = data;

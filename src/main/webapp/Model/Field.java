@@ -27,7 +27,7 @@ public class Field implements Serializable {
     }
 
     public void addTranslation(String key, String value) {
-        this.wordLUT.put(key, value);
+        this.wordLUT.put(key.toLowerCase(), value);
     }
 
     @Override

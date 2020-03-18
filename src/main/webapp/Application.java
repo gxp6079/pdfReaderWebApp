@@ -69,6 +69,7 @@ public class Application implements SparkApplication {
         TableFactory.fh.close();
         getSignInRoute.fh.close();
         getAvailableTemplatesRoute.fh.close();
+        postUpdateFieldRoute.fh.close();
     }
 
     @Override

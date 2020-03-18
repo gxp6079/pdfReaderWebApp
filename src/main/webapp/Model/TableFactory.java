@@ -226,7 +226,7 @@ public class TableFactory {
                         table.addRow(tableRow);
                         LOG.info("Adding row of size: " + tableRow.size());
                     } else if (nonEmpty == 1) { // case with only one element in row
-                        int prevRowIndex = table.getTable().size()-2;
+                        int prevRowIndex = table.getTable().size()-1;
                         if (!tableRow.get(0).trim().equals("") && prevRowIndex >= 0) { // if its the first element add it to the previous row
                             List<String> prevRow = table.getTable().get(prevRowIndex);
                             prevRow.set(0, prevRow.get(0) + " " + tableRow.get(0));
