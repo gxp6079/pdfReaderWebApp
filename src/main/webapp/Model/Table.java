@@ -1,5 +1,7 @@
 package main.webapp.Model;
 
+import com.google.gson.Gson;
+
 import java.util.*;
 import java.util.logging.FileHandler;
 import java.util.logging.Logger;
@@ -144,39 +146,36 @@ public class Table {
     }
 
     public String toString(){
-        String s = "";
+        ArrayList<ArrayList<String>> table2D = new ArrayList<>();
+        ArrayList<String> row = new ArrayList<>();
         for (Header header : headerList.values()){
-           s += header.toString();
-           s += "| ";
+           row.add(header.toString());
         }
-        s += "\n";
-        String subs = "";
+        table2D.add(row);
+        row = new ArrayList<>();
         for (Header parent :headerList.values()){
             if(!parent.hasChildren()){
-                subs += "| ";
+                row.add("");
             }
             else{
                 Header child = null;
                 for (int i = 0 ; i < parent.getChildren().size() ; i++){
                     child = parent.getChildren().get(i);
-                    subs += child.toString();
-                    subs += "| ";
+                    row.add(child.toString());
                 }
             }
         }
-        subs += "\n";
-        s += subs;
-        for (List<String> row : table){
-            String rowString = "";
-            int idx = 0;
-            for(String value : row){
-                rowString += value;
-                rowString += "| ";
+        table2D.add(row);
+        row = new ArrayList<>();
+        for (List<String> tableRow : table){
+            for(String value : tableRow){
+                row.add(value);
             }
-            rowString += "\n";
-            s += rowString;
+            table2D.add(row);
+            row = new ArrayList<>();
         }
-        return s;
+        Gson gson = new Gson();
+        return gson.toJson(table2D);
     }
 
 

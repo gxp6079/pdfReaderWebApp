@@ -177,7 +177,7 @@ public class TableFactory {
                 return new Table(start, end, orientation); //shouldn't we return null here
             }
             else{
-                this.row = locations.get(location - 1)[0];
+                this.row = locations.get(location - 1)[0] + 1;
                 this.leftCol = locations.get(location - 1)[1];
                 LOG.info("Using location row, leftCol: " + this.row + ", " + this.leftCol);
             }
