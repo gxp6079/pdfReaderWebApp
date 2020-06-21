@@ -9,14 +9,16 @@ public class TableAttributes implements Serializable {
     public final Boolean contains;
     public final String tableId;
     public final Orientation orientation;
+    public final boolean ignoreOneLine;
     private int occurrence = 1;
 
-    public TableAttributes(String start, String end, Boolean contains, String tableId, Orientation orientation) {
+    public TableAttributes(String start, String end, Boolean contains, String tableId, Orientation orientation, boolean ignoreOneLine) {
         this.START = start;
         this.END = end;
         this.contains = contains;
         this.tableId = tableId;
         this.orientation = orientation;
+        this.ignoreOneLine = ignoreOneLine;
     }
 
     public void setOccurrence(int occurrence) {

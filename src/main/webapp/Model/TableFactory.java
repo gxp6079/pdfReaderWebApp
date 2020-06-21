@@ -61,6 +61,8 @@ public class TableFactory {
 
     private List<Integer[]> locations;
 
+    private boolean ignoreOneLine;
+
     private static final Logger LOG = Logger.getLogger(TableFactory.class.getName());
     public static FileHandler fh;
 
@@ -76,6 +78,7 @@ public class TableFactory {
 
         this.start = start = "";
         this.end = end = "";
+        this.ignoreOneLine = false;
 
         try{
             fh = new FileHandler("pdfReaderLogFiles/TableFactoryLog.log");
@@ -91,7 +94,7 @@ public class TableFactory {
     }
 
 
-    public void initialize(String start, String end, Boolean contains, TableAttributes.Orientation orientation) {
+    public void initialize(String start, String end, Boolean contains, TableAttributes.Orientation orientation, boolean ignoreOneLine) {
         this.tableRow.clear();
         this.dataIndexes.clear();
         this.row = 0;
@@ -101,6 +104,8 @@ public class TableFactory {
         this.start = start.trim().toLowerCase();
         this.end = end.trim().toLowerCase();
         this.locations = getLocation(this.start, this.end, this.contains);
+        this.ignoreOneLine = ignoreOneLine;
+
         LOG.info("Table factory initialized with start, end: " + start + ", " + end);
         LOG.info("Number of locations found: " + locations.size());
     }
@@ -225,7 +230,7 @@ public class TableFactory {
                     if (nonEmpty > 1) { // normal row
                         table.addRow(tableRow);
                         LOG.info("Adding row of size: " + tableRow.size());
-                    } else if (nonEmpty == 1) { // case with only one element in row
+                    } else if (nonEmpty == 1 && !ignoreOneLine) { // case with only one element in row
                         int prevRowIndex = table.getTable().size()-1;
                         if (!tableRow.get(0).trim().equals("") && prevRowIndex >= 0) { // if its the first element add it to the previous row
                             List<String> prevRow = table.getTable().get(prevRowIndex);

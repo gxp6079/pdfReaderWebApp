@@ -30,7 +30,7 @@ public class TemplateReader {
             Map<String, Table> tables = new HashMap<>();
 
             for (TableAttributes ta : template.getTables().values()) {
-                tableFactory.initialize(ta.START, ta.END, ta.contains, ta.orientation);
+                tableFactory.initialize(ta.START, ta.END, ta.contains, ta.orientation, ta.ignoreOneLine);
                 Table table = tableFactory.makeTable(ta.getOccurrence());
                 if (table != null) tables.put(ta.tableId, table);
             }
@@ -86,7 +86,7 @@ public class TemplateReader {
 
         for(TableAttributes attributes : template.getTables().values()){
             LOG.info("looking for table with start, end: " + attributes.START + ", " + attributes.END);
-            tableFactory.initialize(attributes.START, attributes.END, attributes.contains, attributes.orientation);
+            tableFactory.initialize(attributes.START, attributes.END, attributes.contains, attributes.orientation, attributes.ignoreOneLine);
             Table table = tableFactory.makeTable(attributes.getOccurrence());
             LOG.info("Table found");
             tables.put(attributes.tableId, table);
@@ -100,7 +100,7 @@ public class TemplateReader {
                         "\n requested = "+ tableId);
         TableAttributes attributes = template.getTables().get(tableId);
         LOG.info("Got attributes = " + attributes);
-        tableFactory.initialize(attributes.START, attributes.END, attributes.contains, attributes.orientation);
+        tableFactory.initialize(attributes.START, attributes.END, attributes.contains, attributes.orientation, attributes.ignoreOneLine);
         LOG.info("Table initialized");
         Table table = tableFactory.makeTable(attributes.getOccurrence());
         LOG.info("Made table = " + table);
@@ -121,9 +121,9 @@ public class TemplateReader {
         }
     }
 
-    public static void createTable(Template template, String start, String end, Boolean contains, String tableId, int instance, TableAttributes.Orientation orientation){
+    public static void createTable(Template template, String start, String end, Boolean contains, String tableId, int instance, TableAttributes.Orientation orientation, boolean ignoreOneLine){
 
-        TableAttributes attributes = new TableAttributes(start, end, contains, tableId, orientation);
+        TableAttributes attributes = new TableAttributes(start, end, contains, tableId, orientation, ignoreOneLine);
         attributes.setOccurrence(instance);
         template.addTable(attributes);
 
