@@ -138,7 +138,7 @@ public class Table {
             return data;
 
         } else {
-            LOG.info("Treating table as vertical");
+            LOG.info("Treating table as horizontal");
             List<String> row = this.table.get(rowNum);
             LOG.info("Adding: " + row.subList(colNum, row.size()));
             return row.subList(colNum, row.size());
